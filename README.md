@@ -8,3 +8,6 @@ Domain separation while hashing leaves and nodes.
 1. [Sparse merkle tree](./src/sparse_merkle_tree.rs) with optimizations from V. Buterin  
 1. [Merkle Patricia trie](./src/merkle_patricia_trie.rs)
 1. [Compact merkle tree](./src/compact_merkle_tree.rs) as described by Google's certificate transparency.
+
+## TODO
+1. Make each tree usable as a feature.
