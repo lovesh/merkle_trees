@@ -3,12 +3,12 @@ extern crate sha3;
 
 use self::rlp::RlpStream;
 use self::sha3::{Digest, Sha3_256};
-use db::HashValueDb;
-use errors::{MerkleTreeError, MerkleTreeErrorKind};
+use crate::db::HashValueDb;
+use crate::errors::{MerkleTreeError, MerkleTreeErrorKind};
 use failure::_core::cmp::min;
-use hasher::Arity2Hasher;
+use crate::hasher::Arity2Hasher;
 use std::marker::PhantomData;
-use types::LeafIndex;
+use crate::types::LeafIndex;
 
 // IMPLEMENTATION AS USED BY ETHEREUM. https://github.com/ethereum/wiki/wiki/Patricia-Tree
 // Code borrowed from ethereum implementation and this repo https://github.com/lovesh/Merkle-Patricia-Trie
@@ -1378,7 +1378,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use db::InMemoryHashValueDb;
+    use crate::db::InMemoryHashValueDb;
     use std::collections::HashMap;
     extern crate rand;
     use self::rand::{thread_rng, Rng};

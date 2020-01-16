@@ -1,8 +1,8 @@
-use db::HashValueDb;
-use errors::MerkleTreeError;
-use hasher::Arity2Hasher;
+use crate::db::HashValueDb;
+use crate::errors::MerkleTreeError;
+use crate::hasher::Arity2Hasher;
 use std::marker::PhantomData;
-use types::LeafIndex;
+use crate::types::LeafIndex;
 
 // Following idea described here https://ethresear.ch/t/optimizing-sparse-merkle-trees/3751
 
@@ -397,9 +397,9 @@ mod tests {
     extern crate rand;
     use self::rand::{thread_rng, Rng};
 
-    use db::{InMemoryBigUintHashDb, InMemoryHashValueDb};
-    use hasher::mimc_hash::MiMCHasher;
-    use hasher::Sha256Hasher;
+    use crate::db::{InMemoryBigUintHashDb, InMemoryHashValueDb};
+    use crate::hasher::mimc_hash::MiMCHasher;
+    use crate::hasher::Sha256Hasher;
     use num_bigint::{BigUint, RandBigInt};
     use num_traits::Pow;
     use std::collections::HashSet;

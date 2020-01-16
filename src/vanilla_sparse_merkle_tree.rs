@@ -1,8 +1,8 @@
-use db::HashValueDb;
-use errors::MerkleTreeError;
-use hasher::{Arity2Hasher, Arity4Hasher};
+use crate::db::HashValueDb;
+use crate::errors::MerkleTreeError;
+use crate::hasher::{Arity2Hasher, Arity4Hasher};
 use std::marker::PhantomData;
-use types::LeafIndex;
+use crate::types::LeafIndex;
 
 // TODO: Have prehashed versions of the methods below that do not call `hash_leaf_data` but assume
 // that leaf data being passed is already hashed.
@@ -343,8 +343,8 @@ mod tests {
     extern crate rand;
     use self::rand::{thread_rng, Rng};
 
-    use db::InMemoryHashValueDb;
-    use hasher::Sha256Hasher;
+    use crate::db::InMemoryHashValueDb;
+    use crate::hasher::Sha256Hasher;
     use num_bigint::{BigUint, RandBigInt};
     use std::collections::HashSet;
 

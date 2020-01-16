@@ -1,5 +1,5 @@
 use crate::sha2::{Digest, Sha256};
-use errors::MerkleTreeError;
+use crate::errors::MerkleTreeError;
 
 pub trait Arity2Hasher<D, H> {
     fn hash_leaf_data(&self, leaf: D) -> Result<H, MerkleTreeError>;

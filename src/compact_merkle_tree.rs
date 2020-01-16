@@ -1,5 +1,5 @@
-use errors::{MerkleTreeError, MerkleTreeErrorKind};
-use hasher::Arity2Hasher;
+use crate::errors::{MerkleTreeError, MerkleTreeErrorKind};
+use crate::hasher::Arity2Hasher;
 use std::marker::PhantomData;
 
 // Code inspired from Google's certificate-transparency https://github.com/google/certificate-transparency/blob/master/python/ct/crypto/merkle.py
@@ -846,7 +846,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hasher::Sha256Hasher;
+    use crate::hasher::Sha256Hasher;
 
     #[test]
     fn test_largest_power_of_2_less_than() {
