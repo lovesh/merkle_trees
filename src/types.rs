@@ -2,14 +2,16 @@ use arrayvec::ArrayVec;
 use num_bigint::BigUint;
 use num_traits::identities::Zero;
 
+/// Type for indexing leaves of a sparse merkle tree
 pub trait LeafIndex {
     /// Path from root to leaf
     // TODO: Return type can be arrayvec?
     fn to_leaf_path(&self, arity: u8, tree_depth: usize) -> Vec<u8>;
 }
 
+/// When sparse merkle tree can have 2^64 leaves at max
 impl LeafIndex for u64 {
-    /// Returns the representation of the `u64` in MSB form
+    /// Returns the representation of the `u64` as a byte array in MSB form
     fn to_leaf_path(&self, arity: u8, tree_depth: usize) -> Vec<u8> {
         assert!(arity.is_power_of_two());
         let shift = (arity as f32).log2() as u64;
@@ -32,7 +34,9 @@ impl LeafIndex for u64 {
     }
 }
 
+/// When sparse merkle tree can have arbitrary number (usually > 2^128) of leaves
 impl LeafIndex for BigUint {
+    /// Returns the representation of the `BigUint` as a byte array in MSB form
     fn to_leaf_path(&self, arity: u8, tree_depth: usize) -> Vec<u8> {
         assert!(arity.is_power_of_two());
         let mut path = vec![];

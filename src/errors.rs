@@ -29,8 +29,11 @@ pub enum MerkleTreeErrorKind {
     #[fail(display = "Trie does not have any key with given prefix")]
     NoKeyWithPrefixInTrie,
 
-    #[fail(display = "Need equal number of keys and values, no of keys={}, no of values={}", num_keys, num_values)]
-    UnequalNoOfKeysAndValues {num_keys: usize, num_values: usize},
+    #[fail(
+        display = "Need equal number of keys and values, no of keys={}, no of values={}",
+        num_keys, num_values
+    )]
+    UnequalNoOfKeysAndValues { num_keys: usize, num_values: usize },
 
     #[fail(display = "Not found in tree")]
     NotFoundInTree,

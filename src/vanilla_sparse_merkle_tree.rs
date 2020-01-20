@@ -1,12 +1,13 @@
 use crate::db::HashValueDb;
 use crate::errors::MerkleTreeError;
 use crate::hasher::{Arity2Hasher, Arity4Hasher};
-use std::marker::PhantomData;
 use crate::types::LeafIndex;
+use std::marker::PhantomData;
 
 // TODO: Have prehashed versions of the methods below that do not call `hash_leaf_data` but assume
 // that leaf data being passed is already hashed.
 
+/// The types `D`, `H` and `MTH` correspond to the types of data, hash and merkle tree hasher
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VanillaBinarySparseMerkleTree<D: Clone, H: Clone, MTH>
 where
@@ -348,43 +349,28 @@ mod tests {
     use num_bigint::{BigUint, RandBigInt};
     use std::collections::HashSet;
 
-    #[test]
-    fn test_vanilla_binary_sparse_tree_sha256_string() {
-        let mut db = InMemoryHashValueDb::<(Vec<u8>, Vec<u8>)>::new();
-        let tree_depth = 7;
-        let max_leaves = 2u64.pow(tree_depth as u32);
-        // Choice of `empty_leaf_val` is arbitrary
-        let empty_leaf_val = "";
-        let hasher = Sha256Hasher {
-            leaf_data_domain_separator: 0,
-            node_domain_separator: 1,
-        };
-        let mut tree = VanillaBinarySparseMerkleTree::new(
-            empty_leaf_val.clone(),
-            hasher.clone(),
-            tree_depth,
-            &mut db,
-        )
-        .unwrap();
+    use crate::db::rusqlite_db;
+    use crate::errors::MerkleTreeErrorKind;
+    use std::fs;
+    extern crate rusqlite;
+    use rusqlite::{params, Connection, NO_PARAMS};
 
-        let empty_leaf_hash = Arity2Hasher::hash_leaf_data(&hasher, empty_leaf_val).unwrap();
-        for i in 0..max_leaves {
-            assert_eq!(tree.get(&i, &mut None, &db).unwrap(), empty_leaf_hash);
-        }
-
-        let mut data = vec![];
-        for i in 0..max_leaves {
-            let val = [String::from("val_"), i.to_string()].concat();
-            let hash = Arity2Hasher::hash_leaf_data(&hasher, &val).unwrap();
-            data.push((i, val, hash));
-        }
-        for i in 0..max_leaves {
+    fn check_binary_tree_update_get_and_proof<'a, T, I>(
+        tree: &'a mut VanillaBinarySparseMerkleTree<&'a str, Vec<u8>, Sha256Hasher>,
+        tree_depth: usize,
+        hasher: Sha256Hasher,
+        data: &'a Vec<(I, String, Vec<u8>)>,
+        db: &mut T,
+    ) where
+        T: HashValueDb<Vec<u8>, (Vec<u8>, Vec<u8>)>,
+    {
+        for i in 0..(data.len() as u64) {
             // Update and check
-            tree.update(&i, &data[i as usize].1, &mut db).unwrap();
+            tree.update(&i, &data[i as usize].1, db).unwrap();
 
             let mut proof_vec = Vec::<Vec<u8>>::new();
             let mut proof = Some(proof_vec);
-            assert_eq!(tree.get(&i, &mut proof, &db).unwrap(), data[i as usize].2);
+            assert_eq!(tree.get(&i, &mut proof, db).unwrap(), data[i as usize].2);
 
             proof_vec = proof.unwrap();
 
@@ -401,11 +387,11 @@ mod tests {
                 .unwrap());
         }
 
-        for i in 0..max_leaves {
+        for i in 0..(data.len() as u64) {
             // Check after all updates done
             let mut proof_vec = Vec::<Vec<u8>>::new();
             let mut proof = Some(proof_vec);
-            assert_eq!(tree.get(&i, &mut proof, &db).unwrap(), data[i as usize].2);
+            assert_eq!(tree.get(&i, &mut proof, db).unwrap(), data[i as usize].2);
 
             proof_vec = proof.unwrap();
 
@@ -418,6 +404,51 @@ mod tests {
                 .verify_proof(&i, &data[i as usize].1, proof_vec.clone(), None)
                 .unwrap());
         }
+    }
+
+    fn check_binary_tree_create_update_get_and_proof<T>(
+        tree_depth: usize,
+        empty_leaf_val: &str,
+        db: &mut T,
+    ) where
+        T: HashValueDb<Vec<u8>, (Vec<u8>, Vec<u8>)>,
+    {
+        let max_leaves = 2u64.pow(tree_depth as u32);
+        let hasher = Sha256Hasher {
+            leaf_data_domain_separator: 0,
+            node_domain_separator: 1,
+        };
+        let mut tree = VanillaBinarySparseMerkleTree::new(
+            empty_leaf_val.clone(),
+            hasher.clone(),
+            tree_depth,
+            db,
+        )
+        .unwrap();
+
+        let empty_leaf_hash = Arity2Hasher::hash_leaf_data(&hasher, empty_leaf_val).unwrap();
+        for i in 0..max_leaves {
+            assert_eq!(tree.get(&i, &mut None, db).unwrap(), empty_leaf_hash);
+        }
+
+        let mut data = vec![];
+        for i in 0..max_leaves {
+            let val = [String::from("val_"), i.to_string()].concat();
+            let hash = Arity2Hasher::hash_leaf_data(&hasher, &val).unwrap();
+            data.push((i, val, hash));
+        }
+
+        check_binary_tree_update_get_and_proof(&mut tree, tree_depth, hasher, &data, db);
+    }
+
+    #[test]
+    fn test_vanilla_binary_sparse_tree_sha256_string() {
+        let mut db = InMemoryHashValueDb::<(Vec<u8>, Vec<u8>)>::new();
+        let tree_depth = 7;
+        // Choice of `empty_leaf_val` is arbitrary
+        let empty_leaf_val = "";
+
+        check_binary_tree_create_update_get_and_proof(tree_depth, empty_leaf_val, &mut db)
     }
 
     #[test]
@@ -513,6 +544,7 @@ mod tests {
         let test_cases = 300;
         let mut rng = thread_rng();
         let mut set = HashSet::new();
+
         while data.len() < test_cases {
             let i: BigUint = rng.gen_biguint(160);
             if set.contains(&i) {
@@ -525,47 +557,78 @@ mod tests {
             data.push((i.clone(), val, hash));
         }
 
-        for i in 0..test_cases {
-            let idx = &data[i].0;
-            // Update and check
-            tree.update(idx, &data[i].1, &mut db).unwrap();
+        check_binary_tree_update_get_and_proof(&mut tree, tree_depth, hasher, &data, &mut db);
+    }
 
-            let mut proof_vec = Vec::<Vec<u8>>::new();
-            let mut proof = Some(proof_vec);
-            assert_eq!(tree.get(idx, &mut proof, &db).unwrap(), data[i].2);
+    /// Testing implementation for using sqlite for storing tree data. No error handling. Purpose is
+    /// to demonstrate how a persistent database can be used
 
-            proof_vec = proof.unwrap();
+    pub struct RusqliteSMTHashValueDb {
+        db_path: String,
+        pub table_name: String,
+        pub db_conn: Connection,
+    }
 
-            let verifier_tree = VanillaBinarySparseMerkleTree::initialize_with_root_hash(
-                hasher.clone(),
-                tree_depth,
-                tree.root.clone(),
+    impl RusqliteSMTHashValueDb {
+        pub fn new(db_path: String, table_name: String) -> Self {
+            let db_conn = Connection::open(&db_path).unwrap();
+            let sql = format!("create table if not exists {} (key string primary key, value1 blob not null, value2 blob not null)", table_name);
+            db_conn.execute(&sql, NO_PARAMS).unwrap();
+            Self {
+                db_path,
+                table_name,
+                db_conn,
+            }
+        }
+    }
+
+    impl HashValueDb<Vec<u8>, (Vec<u8>, Vec<u8>)> for RusqliteSMTHashValueDb {
+        fn put(&mut self, hash: Vec<u8>, value: (Vec<u8>, Vec<u8>)) -> Result<(), MerkleTreeError> {
+            let hash_hex = rusqlite_db::RusqliteHashValueDb::hash_to_hex(&hash);
+            let sql = format!(
+                "insert into {} (key, value1, value2) values (?1, ?2, ?3)",
+                self.table_name
             );
-            assert!(verifier_tree
-                .verify_proof(idx, &data[i].1, proof_vec.clone(), None)
-                .unwrap());
-            assert!(verifier_tree
-                .verify_proof(idx, &data[i].1, proof_vec.clone(), Some(&tree.root))
-                .unwrap());
+            let (v1, v2) = value;
+            // XXX: A real implementation will have error handling here
+            self.db_conn
+                .execute(&sql, params![hash_hex, v1, v2])
+                .unwrap();
+            Ok(())
         }
 
-        for i in 0..test_cases {
-            let idx = &data[i].0;
-            // Check after all updates done
-            let mut proof_vec = Vec::<Vec<u8>>::new();
-            let mut proof = Some(proof_vec);
-            assert_eq!(tree.get(idx, &mut proof, &db).unwrap(), data[i].2);
-
-            proof_vec = proof.unwrap();
-
-            let verifier_tree = VanillaBinarySparseMerkleTree::initialize_with_root_hash(
-                hasher.clone(),
-                tree_depth,
-                tree.root.clone(),
+        fn get(&self, hash: &Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), MerkleTreeError> {
+            let sql = format!(
+                "select value1, value2 from {} where key='{}'",
+                self.table_name,
+                rusqlite_db::RusqliteHashValueDb::hash_to_hex(hash)
             );
-            assert!(verifier_tree
-                .verify_proof(idx, &data[i].1, proof_vec.clone(), None)
-                .unwrap());
+            // XXX: A real implementation will have error handling here
+            self.db_conn
+                .query_row(&sql, NO_PARAMS, |row| {
+                    let v1 = row.get(0).unwrap();
+                    let v2 = row.get(1).unwrap();
+                    Ok((v1, v2))
+                })
+                .map_err(|_| {
+                    MerkleTreeError::from_kind(MerkleTreeErrorKind::HashNotFoundInDB {
+                        hash: hash.to_vec(),
+                    })
+                })
         }
+    }
+
+    #[test]
+    fn test_binary_tree_sha256_hash_sqlite_db() {
+        // Test demonstrating the use of sqlite db for tree data
+
+        let db_path = "./rusqlite_tree.db";
+        fs::remove_file(db_path);
+
+        let mut db = RusqliteSMTHashValueDb::new(String::from(db_path), String::from("kv_table"));
+        let tree_depth = 3;
+        let empty_leaf_val = "";
+
+        check_binary_tree_create_update_get_and_proof(tree_depth, empty_leaf_val, &mut db)
     }
 }

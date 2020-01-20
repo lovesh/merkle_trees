@@ -268,7 +268,8 @@ where
             // No subtree exists in the current tree smaller or of same size as the number of remaining leaves so
             // create full trees from the remaining leaves and add store their roots.
 
-            let (leaf_hashes, node_hashes) = Self::hash_leaves(&self.hasher, leaves.drain(0..).collect())?;
+            let (leaf_hashes, node_hashes) =
+                Self::hash_leaves(&self.hasher, leaves.drain(0..).collect())?;
 
             // `full_subtree_roots` should contain the roots of the full subtrees
             let mut idx = 0;
@@ -1083,7 +1084,8 @@ mod tests {
         assert_eq!(h_n_0_1[0], expected_h_l_0_1);
 
         let h_l_2 = hasher.hash_leaf(l_2).unwrap();
-        let (h_l_0_2, h_n_0_2) = CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2]).unwrap();
+        let (h_l_0_2, h_n_0_2) =
+            CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2]).unwrap();
         assert_eq!(h_l_0_2.len(), 3);
         assert_eq!(h_n_0_2.len(), 1);
         assert_eq!(h_n_0_2[0], expected_h_l_0_1);
@@ -1095,7 +1097,8 @@ mod tests {
         let expected_h_l_0_3 = hasher
             .hash_tree_nodes(expected_h_l_0_1.clone(), expected_h_l_2_3.clone())
             .unwrap();
-        let (h_l_0_3, h_n_0_3) = CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3]).unwrap();
+        let (h_l_0_3, h_n_0_3) =
+            CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3]).unwrap();
         assert_eq!(h_l_0_3.len(), 4);
         assert_eq!(h_n_0_3.len(), 3);
         assert_eq!(h_n_0_3[0], expected_h_l_0_1);
@@ -1103,7 +1106,8 @@ mod tests {
         assert_eq!(h_n_0_3[2], expected_h_l_0_3);
 
         let h_l_4 = hasher.hash_leaf(l_4).unwrap();
-        let (h_l_0_4, h_n_0_4) = CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3, l_4]).unwrap();
+        let (h_l_0_4, h_n_0_4) =
+            CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3, l_4]).unwrap();
         assert_eq!(h_l_0_4.len(), 5);
         assert_eq!(h_n_0_4.len(), 3);
         assert_eq!(h_n_0_4[0], expected_h_l_0_1);
@@ -1113,8 +1117,8 @@ mod tests {
         let h_l_5 = hasher.hash_leaf(l_5).unwrap();
         // hash(h_l_4, h_l_5)
         let expected_h_l_4_5 = hasher.hash_tree_nodes(h_l_4, h_l_5).unwrap();
-        let (h_l_0_5, h_n_0_5) = CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3, l_4, l_5])
-            .unwrap();
+        let (h_l_0_5, h_n_0_5) =
+            CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3, l_4, l_5]).unwrap();
         assert_eq!(h_l_0_5.len(), 6);
         assert_eq!(h_n_0_5.len(), 4);
         assert_eq!(h_n_0_5[0], expected_h_l_0_1);
@@ -1123,8 +1127,9 @@ mod tests {
         assert_eq!(h_n_0_5[3], expected_h_l_4_5);
 
         let h_l_6 = hasher.hash_leaf(l_6).unwrap();
-        let (h_l_0_6, h_n_0_6) = CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3, l_4, l_5, l_6])
-            .unwrap();
+        let (h_l_0_6, h_n_0_6) =
+            CompactMerkleTree::hash_leaves(&hasher, vec![l_0, l_1, l_2, l_3, l_4, l_5, l_6])
+                .unwrap();
         assert_eq!(h_l_0_6.len(), 7);
         assert_eq!(h_n_0_6.len(), 4);
         assert_eq!(h_n_0_6[0], expected_h_l_0_1);

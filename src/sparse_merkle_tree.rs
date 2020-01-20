@@ -1,8 +1,8 @@
 use crate::db::HashValueDb;
 use crate::errors::MerkleTreeError;
 use crate::hasher::Arity2Hasher;
-use std::marker::PhantomData;
 use crate::types::LeafIndex;
+use std::marker::PhantomData;
 
 // Following idea described here https://ethresear.ch/t/optimizing-sparse-merkle-trees/3751
 
@@ -12,6 +12,7 @@ pub enum NodeType<H> {
     SubtreeHash(H),
 }
 
+/// The types `D`, `H` and `MTH` correspond to the types of data, hash and merkle tree hasher
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinarySparseMerkleTree<D: Clone, H: Clone, MTH>
 where
@@ -444,63 +445,8 @@ mod tests {
     }
 
     #[test]
-    fn test_binary_tree_sha256_string() {
-        let mut db = InMemoryHashValueDb::<(NodeType<Vec<u8>>, Vec<u8>)>::new();
-        let tree_depth = 10;
-        let max_leaves = 2u64.pow(tree_depth as u32);
-        let empty_leaf_val = "";
-        let hasher = Sha256Hasher {
-            leaf_data_domain_separator: 0,
-            node_domain_separator: 1,
-        };
-
-        let mut tree =
-            BinarySparseMerkleTree::new(empty_leaf_val.clone(), hasher.clone(), tree_depth)
-                .unwrap();
-
-        let empty_leaf_hash = Arity2Hasher::hash_leaf_data(&hasher, empty_leaf_val).unwrap();
-        for i in 0..max_leaves {
-            assert_eq!(tree.get(&i, &mut None, &db).unwrap(), empty_leaf_hash);
-        }
-
-        let test_cases = 300;
-        let mut rng = thread_rng();
-        let mut data = vec![];
-        let mut set = HashSet::new();
-        while data.len() < test_cases {
-            let i: u64 = rng.gen_range(0, max_leaves);
-            if set.contains(&i) {
-                continue;
-            } else {
-                set.insert(i);
-            }
-            let val = [String::from("val_"), i.to_string()].concat();
-            let hash = Arity2Hasher::hash_leaf_data(&hasher, &val).unwrap();
-            data.push((i, val, hash));
-        }
-
-        for i in 0..test_cases {
-            let idx = &data[i as usize].0;
-            tree.update(idx, &data[i as usize].1, &mut db).unwrap();
-
-            let mut proof_vec = Vec::<(NodeType<Vec<u8>>, Vec<u8>)>::new();
-            let mut proof = Some(proof_vec);
-            assert_eq!(tree.get(idx, &mut proof, &db).unwrap(), data[i as usize].2);
-
-            proof_vec = proof.unwrap();
-            assert!(tree
-                .verify_proof(idx, &data[i as usize].1, proof_vec.clone())
-                .unwrap());
-        }
-
-        for i in 0..test_cases {
-            let idx = &data[i as usize].0;
-            assert_eq!(tree.get(idx, &mut None, &db).unwrap(), data[i as usize].2);
-        }
-    }
-
-    #[test]
-    fn test_binary_tree_sha256_string_repeated() {
+    fn test_binary_tree_sha256_string_updating_existing_keys() {
+        // Update keys already present in the tree
         let mut db = InMemoryHashValueDb::<(NodeType<Vec<u8>>, Vec<u8>)>::new();
         let tree_depth = 10;
         let max_leaves = 2u64.pow(tree_depth as u32);
@@ -550,6 +496,71 @@ mod tests {
         }
     }
 
+    fn check_update_get<'a, C, I, T>(test_cases: usize, mut index_func: C, tree: &'a mut BinarySparseMerkleTree<&'a str, Vec<u8>,
+        Sha256Hasher>, data: &'a mut Vec<(I, String, Vec<u8>)>, hasher: Sha256Hasher, db: &mut T) where
+        T: HashValueDb<Vec<u8>, (NodeType<Vec<u8>>, Vec<u8>)>, C: FnMut() -> I,
+        I: LeafIndex + std::hash::Hash + std::cmp::Eq + std::string::ToString + Clone + 'a {
+        // `data` will have unique indices
+        let mut set = HashSet::new();
+        while data.len() < test_cases {
+            let i = index_func();
+            if set.contains(&i) {
+                continue;
+            } else {
+                set.insert(i.clone());
+            }
+            let val = [String::from("val_"), i.to_string()].concat();
+            let hash = Arity2Hasher::hash_leaf_data(&hasher, &val).unwrap();
+            data.push((i, val, hash));
+        }
+
+        for i in 0..test_cases {
+            let idx = &data[i as usize].0;
+            tree.update(idx, &data[i as usize].1, db).unwrap();
+
+            let mut proof_vec = Vec::<(NodeType<Vec<u8>>, Vec<u8>)>::new();
+            let mut proof = Some(proof_vec);
+            assert_eq!(tree.get(idx, &mut proof, db).unwrap(), data[i as usize].2);
+
+            proof_vec = proof.unwrap();
+            assert!(tree
+                .verify_proof(idx, &data[i as usize].1, proof_vec.clone())
+                .unwrap());
+        }
+
+        for i in 0..test_cases {
+            let idx = &data[i as usize].0;
+            assert_eq!(tree.get(idx, &mut None, db).unwrap(), data[i as usize].2);
+        }
+    }
+
+    #[test]
+    fn test_binary_tree_sha256_string() {
+        let mut db = InMemoryHashValueDb::<(NodeType<Vec<u8>>, Vec<u8>)>::new();
+        let tree_depth = 10;
+        let max_leaves = 2u64.pow(tree_depth as u32);
+        let empty_leaf_val = "";
+        let hasher = Sha256Hasher {
+            leaf_data_domain_separator: 0,
+            node_domain_separator: 1,
+        };
+
+        let mut tree =
+            BinarySparseMerkleTree::new(empty_leaf_val.clone(), hasher.clone(), tree_depth)
+                .unwrap();
+
+        let empty_leaf_hash = Arity2Hasher::hash_leaf_data(&hasher, empty_leaf_val).unwrap();
+        for i in 0..max_leaves {
+            assert_eq!(tree.get(&i, &mut None, &db).unwrap(), empty_leaf_hash);
+        }
+
+        let mut data = Vec::<(u64, String, Vec<u8>)>::new();
+        let test_cases = 300;
+        let mut rng = thread_rng();
+        let index_func = || rng.gen_range(0, max_leaves);
+        check_update_get(test_cases, index_func, &mut tree, &mut data, hasher, &mut db);
+    }
+
     #[test]
     fn test_binary_tree_sha256_string_BigUint_index() {
         let mut db = InMemoryHashValueDb::<(NodeType<Vec<u8>>, Vec<u8>)>::new();
@@ -564,37 +575,12 @@ mod tests {
             BinarySparseMerkleTree::new(empty_leaf_val.clone(), hasher.clone(), tree_depth)
                 .unwrap();
 
-        let mut data = vec![];
+        let mut data = Vec::<(BigUint, String, Vec<u8>)>::new();
         let test_cases = 1000;
         let mut rng = thread_rng();
-        let mut set = HashSet::new();
 
-        while data.len() < test_cases {
-            let i: BigUint = rng.gen_biguint(160);
-            if set.contains(&i) {
-                continue;
-            } else {
-                set.insert(i.clone());
-            }
-            let val = [String::from("val_"), i.clone().to_string()].concat();
-            let hash = Arity2Hasher::hash_leaf_data(&hasher, &val).unwrap();
-            data.push((i.clone(), val, hash));
-        }
-
-        for i in 0..test_cases {
-            let idx = &data[i as usize].0;
-            tree.update(idx, &data[i as usize].1, &mut db).unwrap();
-            assert_eq!(tree.get(idx, &mut None, &db).unwrap(), data[i as usize].2);
-
-            let mut proof_vec = Vec::<(NodeType<Vec<u8>>, Vec<u8>)>::new();
-            let mut proof = Some(proof_vec);
-            assert_eq!(tree.get(idx, &mut proof, &db).unwrap(), data[i as usize].2);
-
-            proof_vec = proof.unwrap();
-            assert!(tree
-                .verify_proof(idx, &data[i as usize].1, proof_vec.clone())
-                .unwrap());
-        }
+        let index_func = || rng.gen_biguint(160);
+        check_update_get(test_cases, index_func, &mut tree, &mut data, hasher, &mut db);
     }
 
     #[test]
@@ -617,7 +603,7 @@ mod tests {
         let mut set = HashSet::new();
 
         while data.len() < test_cases {
-            let i: BigUint = rng.gen_biguint(160);
+            let i = rng.gen_biguint(160);
             if set.contains(&i) {
                 continue;
             } else {

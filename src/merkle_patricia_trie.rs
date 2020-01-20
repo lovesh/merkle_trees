@@ -5,10 +5,9 @@ use self::rlp::RlpStream;
 use self::sha3::{Digest, Sha3_256};
 use crate::db::HashValueDb;
 use crate::errors::{MerkleTreeError, MerkleTreeErrorKind};
-use failure::_core::cmp::min;
 use crate::hasher::Arity2Hasher;
 use std::marker::PhantomData;
-use crate::types::LeafIndex;
+use std::cmp::min;
 
 // IMPLEMENTATION AS USED BY ETHEREUM. https://github.com/ethereum/wiki/wiki/Patricia-Tree
 // Code borrowed from ethereum implementation and this repo https://github.com/lovesh/Merkle-Patricia-Trie
@@ -463,6 +462,9 @@ impl NodeHasher<Vec<u8>, Vec<u8>> for Sha3Hasher {
     }
 }
 
+/// The type `V` is for the value of the data being stored in the trie.
+/// The type `H` is for the hash output
+/// The type `S` is for the serialized (node) output
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MerklePatriciaTrie<V, H, S: Clone + KnownLength, NS, NH>
 where
@@ -603,7 +605,8 @@ where
         // TODO: Return value should be a iterator as the tree can contain lots of keys
         let need_proof = proof.is_some();
         let mut proof_nodes = Vec::<NodeType<H, V>>::new();
-        let nv = self.get_key_nibbles_and_values(root_node, (need_proof, &mut proof_nodes), hash_db)?;
+        let nv =
+            self.get_key_nibbles_and_values(root_node, (need_proof, &mut proof_nodes), hash_db)?;
 
         if need_proof {
             match proof {
@@ -685,7 +688,10 @@ where
     ) -> Result<bool, MerkleTreeError> {
         if keys.len() != values.len() {
             return Err(MerkleTreeError::from_kind(
-                MerkleTreeErrorKind::UnequalNoOfKeysAndValues {num_keys: keys.len(), num_values: values.len()},
+                MerkleTreeErrorKind::UnequalNoOfKeysAndValues {
+                    num_keys: keys.len(),
+                    num_values: values.len(),
+                },
             ));
         }
 
